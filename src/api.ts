@@ -9,8 +9,8 @@ import {
 const TOKEN_KEY = 'clinic_jwt_token';
 const USER_KEY = 'clinic_user_data';
 
-// Point directly to your live Render backend URL in production
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://healthcare-api-xowz.onrender.com';
+// Hardcoded directly to your live Render backend URL
+const API_BASE_URL = 'https://healthcare-api-xowz.onrender.com';
 
 export function getStoredToken(): string | null {
   try {
