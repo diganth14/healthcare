@@ -9,7 +9,6 @@ import {
 const TOKEN_KEY = 'clinic_jwt_token';
 const USER_KEY = 'clinic_user_data';
 
-// Hardcoded directly to your live Render backend URL
 const API_BASE_URL = 'https://healthcare-api-xowz.onrender.com';
 
 export function getStoredToken(): string | null {
@@ -54,7 +53,6 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // Prepend API_BASE_URL to ensure requests hit Render instead of Vercel
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers,
