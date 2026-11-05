@@ -6,7 +6,12 @@ let ioInstance = null;
 export function initSocket(httpServer) {
   ioInstance = new Server(httpServer, {
     cors: {
-      origin: [CLIENT_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+      origin: [
+        CLIENT_ORIGIN, 
+        'https://healthcare-psi-nine.vercel.app', 
+        'http://localhost:5173', 
+        'http://127.0.0.1:5173'
+      ],
       methods: ['GET', 'POST', 'PUT', 'DELETE'],
       credentials: true,
     },
