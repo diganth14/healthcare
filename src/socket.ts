@@ -5,11 +5,13 @@ let socket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
-    socket = io({
+    socket = io('https://healthcare-api-xowz.onrender.com', {
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
+      transports: ['websocket', 'polling'],
+      withCredentials: true,
     });
 
     socket.on('connect', () => {
