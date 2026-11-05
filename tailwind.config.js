@@ -28,6 +28,24 @@ export default {
           DEFAULT: '#F43F5E',
           dark: '#E11D48',
         },
+        // Landing page and shared chrome tokens
+        chalk: '#F2F4F3',
+        ink: {
+          DEFAULT: '#0F1F1A',
+          soft: '#4A5A54',
+          mute: '#5C6B65',
+        },
+        clinic: {
+          DEFAULT: '#0A6B55',
+          dark: '#07523F',
+          tint: '#E3F0EB',
+        },
+        rule: '#D3DAD6',
+        triage: {
+          emergency: '#C8322B',
+          urgent: '#A35F00',
+          normal: '#1B7F4F',
+        },
       },
       borderRadius: {
         '3xl': '24px',

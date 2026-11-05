@@ -1,20 +1,13 @@
-import React from 'react';
-import { 
-  Stethoscope, 
-  Users, 
-  Wifi, 
-  Sparkles, 
-  LogOut, 
-  UserCheck, 
-  ShieldCheck, 
-  UserPlus, 
-  FileText 
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Stethoscope, LogOut } from 'lucide-react';
 import { User } from '../types';
 
 interface NavigationProps {
   currentUser: User | null;
   onLogout: () => void;
+  onSignIn?: () => void;
+  /** The header sits over a full-bleed photograph until the page scrolls */
+  overHero?: boolean;
   isSocketConnected: boolean;
   activeView: string;
   onChangeView: (view: any) => void;
@@ -25,86 +18,104 @@ interface NavigationProps {
 export const Navigation: React.FC<NavigationProps> = ({
   currentUser,
   onLogout,
+  onSignIn,
+  overHero = false,
   isSocketConnected,
-  activeView,
-  onChangeView,
-  waitingCount,
-  emergencyCount,
 }) => {
+  // The header picks up a background and shadow once the page has scrolled under it
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const transparent = overHero && !scrolled;
+
+  const headerClass = transparent
+    ? 'border-transparent bg-transparent text-white'
+    : scrolled
+      ? 'border-rule bg-chalk/95 text-ink shadow-[0_8px_24px_-16px_rgba(15,31,26,0.3)] backdrop-blur'
+      : 'border-rule bg-chalk/80 text-ink backdrop-blur';
+
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-2xl bg-white/75 border-b border-white/80 shadow-[0_4px_24px_rgba(15,23,42,0.03)] transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-center justify-between py-3.5 gap-4">
-          {/* Brand & Clinic Title */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-500 via-sky-400 to-mint flex items-center justify-center text-white shadow-md shadow-sky-500/20">
-              <Stethoscope className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-sky-700 bg-clip-text text-transparent">
-                  AuraHealth Clinic Flow
-                </span>
-                <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
-                  Patient-Flow v2.0
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 font-medium">
-                Single-Doctor & Nurse Community Clinic System
-              </p>
-            </div>
-          </div>
-
-          {/* Right Area: User badge, Socket Live Pill, Logout */}
-          <div className="flex items-center gap-3">
-            {/* Live Real-time Socket Indicator */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 border border-slate-200/80 text-slate-600">
-              <span className="relative flex h-2 w-2">
-                {isSocketConnected && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                )}
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                  isSocketConnected ? 'bg-emerald-500' : 'bg-amber-500'
-                }`} />
-              </span>
-              <span className="text-[11px] font-bold">
-                {isSocketConnected ? 'Live Socket Sync' : 'Reconnecting...'}
-              </span>
-            </div>
-
-            {/* Current Logged In User */}
-            {currentUser ? (
-              <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-                <div className="flex items-center gap-2 bg-white/90 p-1.5 pr-3 rounded-full border border-slate-200 shadow-xs">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-white ${
-                    currentUser.role === 'doctor' ? 'bg-sky-600' : 'bg-emerald-600'
-                  }`}>
-                    {currentUser.role === 'doctor' ? 'DR' : 'RN'}
-                  </div>
-                  <div>
-                    <span className="text-xs font-extrabold text-slate-800 block leading-tight">
-                      {currentUser.name}
-                    </span>
-                    <span className={`text-[10px] font-black uppercase tracking-wider block leading-none ${
-                      currentUser.role === 'doctor' ? 'text-sky-600' : 'text-emerald-600'
-                    }`}>
-                      {currentUser.role}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  className="p-2 rounded-xl text-slate-500 hover:text-coral hover:bg-coral/10 border border-slate-200 hover:border-coral/20 transition-all"
-                  title="Sign out of portal"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            ) : null}
-          </div>
+    <header
+      className={`sticky top-0 z-40 w-full border-b transition-[background-color,box-shadow,border-color,color] duration-300 ${headerClass}`}
+    >
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        {/* Brand */}
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-clinic text-white">
+            <Stethoscope className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <span className="font-display truncate text-lg font-bold tracking-tight">MediTrack</span>
         </div>
+
+        {currentUser ? (
+          <div className="flex items-center gap-3">
+            {/* Realtime connection status */}
+            <div
+              className="hidden items-center gap-2 text-sm text-ink-soft sm:flex"
+              title={isSocketConnected ? 'Connected to the clinic server' : 'Reconnecting to the clinic server'}
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${isSocketConnected ? 'bg-triage-normal' : 'bg-triage-urgent'}`}
+                aria-hidden="true"
+              />
+              {isSocketConnected ? 'Live sync' : 'Reconnecting'}
+            </div>
+
+            {/* Signed-in user */}
+            <div className="flex items-center gap-2 rounded-full border border-rule bg-white py-1 pl-1 pr-3">
+              <span
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white ${
+                  currentUser.role === 'doctor' ? 'bg-clinic' : 'bg-triage-normal'
+                }`}
+              >
+                {currentUser.role === 'doctor' ? 'DR' : 'RN'}
+              </span>
+              <span className="text-sm leading-tight">
+                <span className="font-semibold text-ink">{currentUser.name}</span>{' '}
+                <span className="text-ink-mute">{currentUser.role === 'doctor' ? 'Doctor' : 'Nurse'}</span>
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={onLogout}
+              aria-label="Sign out"
+              title="Sign out"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-rule text-ink-soft transition-[color,border-color,transform] duration-150 hover:border-triage-emergency/40 hover:text-triage-emergency active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clinic"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <nav className="flex items-center gap-6">
+            <a
+              href="#how-it-works"
+              className={`hidden text-sm font-semibold underline decoration-transparent decoration-2 underline-offset-4 transition-[color,text-decoration-color] duration-200 sm:inline ${
+                transparent ? 'text-white/85 hover:text-white hover:decoration-white' : 'text-ink-soft hover:text-ink hover:decoration-clinic'
+              }`}
+            >
+              How it works
+            </a>
+            {transparent ? (
+              <button
+                type="button"
+                onClick={onSignIn}
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-white/70 px-4 text-sm font-semibold text-white transition-[background-color,color,transform] duration-150 hover:bg-white hover:text-ink active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
+                Sign in
+              </button>
+            ) : (
+              <button type="button" onClick={onSignIn} className="btn-primary h-10 px-4 text-sm">
+                Sign in
+              </button>
+            )}
+          </nav>
+        )}
       </div>
     </header>
   );

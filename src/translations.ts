@@ -87,7 +87,7 @@ export interface TranslationDictionary {
 
 export const translations: Record<Language, TranslationDictionary> = {
   en: {
-    appName: "AuraHealth AI",
+    appName: "MediTrack",
     appTagline: "Rural & Remote Smart Triage",
     onlineMode: "Cloud Sync",
     offlineMode: "Local Clinic Mode",
