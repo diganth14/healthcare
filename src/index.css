@@ -70,3 +70,218 @@
 .animate-heart-pulse {
   animation: heartPulse 1.4s ease-in-out infinite;
 }
+
+/* ---------- Landing page and shared chrome ---------- */
+
+@layer components {
+  /* Display face: Archivo, slightly condensed, for headlines and token numbers */
+  .font-display {
+    font-family: 'Archivo', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+    font-stretch: 90%;
+  }
+
+  .btn-primary {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-clinic px-5 text-base font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-clinic-dark active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clinic;
+  }
+}
+
+/* Hero load sequence: headline, copy, actions, then the queue board rows */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.rise-in {
+  animation: rise-in 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes board-row-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Board rows settle in once the board itself has scrolled into view */
+.board-row {
+  opacity: 0;
+}
+
+.is-visible .board-row {
+  animation: board-row-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* ---------- Hero ----------
+   A full-screen photograph under a dark grade. The kicker, headline lines and description
+   each rise out of a masked box; the actions and the bottom strip fade in last. */
+.hero { position: relative; isolation: isolate; display: flex; flex-direction: column; justify-content: space-between; min-height: 100svh; overflow: hidden; color: #fff; background: #0F1F1A; }
+.hero::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(90deg, rgba(8, 20, 16, .84) 0%, rgba(8, 20, 16, .38) 58%, rgba(8, 20, 16, .18) 100%), linear-gradient(0deg, rgba(8, 20, 16, .55), transparent 48%); }
+.hero__poster { position: absolute; inset: -8% 0; z-index: 0; width: 100%; height: 116%; object-fit: cover; object-position: center; filter: saturate(.78) contrast(1.06); will-change: transform; }
+.hero__content { position: relative; z-index: 2; width: min(100% - 2rem, 1280px); margin: auto; padding: 8rem 0 3.5rem; }
+.hero__bottom { position: relative; z-index: 2; width: min(100% - 2rem, 1280px); margin: 0 auto; padding: 0 0 1.5rem; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1.1rem; color: rgba(255, 255, 255, .72); font-size: .61rem; letter-spacing: .1em; text-transform: uppercase; animation: signin-line-in 1s ease both; animation-delay: 1.5s; }
+@media (min-width: 640px) {
+  .hero__content, .hero__bottom { width: min(100% - 3rem, 1280px); }
+}
+@media (min-width: 1024px) {
+  .hero__content, .hero__bottom { width: min(100% - 4rem, 1280px); }
+}
+.hero__line { height: 1px; background: rgba(255, 255, 255, .45); }
+.hero__kicker { margin: 0 0 1.35rem; font-size: .67rem; font-weight: 500; letter-spacing: .13em; text-transform: uppercase; }
+.hero__title { margin: 0; font-family: 'Archivo', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif; font-stretch: 90%; font-size: clamp(3rem, 6.5vw, 6rem); font-weight: 800; letter-spacing: -.03em; line-height: .94; }
+.hero__mask { display: block; overflow: hidden; padding-block: .12em; margin-block: -.12em; }
+.hero__mask > span { display: block; transform: translateY(110%); animation: hero-line-up 1.05s cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes hero-line-up { to { transform: translateY(0); } }
+.hero__description { max-width: 26rem; margin: 2rem 0; font-size: .95rem; line-height: 1.6; color: rgba(255, 255, 255, .9); }
+.hero__actions { display: flex; flex-wrap: wrap; gap: 2rem; animation: signin-line-in 1.05s cubic-bezier(.16, 1, .3, 1) both; animation-delay: 1.3s; }
+.text-link { display: inline-flex; align-items: center; gap: .75rem; padding: 0 0 .35rem; border: 0; border-bottom: 1px solid currentColor; background: none; color: inherit; font: inherit; font-size: .82rem; font-weight: 500; cursor: pointer; transition: gap .25s ease; }
+.text-link:hover { gap: 1.05rem; }
+.text-link--light { color: #fff; }
+
+/* Scroll reveal: elements fade and rise once as they enter the viewport */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 600ms ease-out, transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Lenis smooth scroll (the rules shipped in lenis/dist/lenis.css) */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: clip;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+/* ---------- Page rise transition ----------
+   The outgoing page sinks and dims while the incoming page climbs from the bottom as a
+   narrow card that widens to full screen. App.tsx adds .page-rise to <html> for the
+   duration of a view transition it starts. */
+::view-transition { pointer-events: none; }
+html.page-rise::view-transition { background: #0F1F1A; }
+html.page-rise::view-transition-old(root) { animation: page-sink 1s cubic-bezier(.7, 0, .2, 1) both; }
+html.page-rise::view-transition-new(root) { animation: page-rise 1s cubic-bezier(.7, 0, .2, 1) both; }
+@keyframes page-sink { to { transform: translateY(-14%); filter: brightness(.42); } }
+@keyframes page-rise {
+  from { transform: translateY(100%); clip-path: inset(0 24% 0 24%); }
+  to { transform: translateY(0); clip-path: inset(0); }
+}
+
+/* ---------- Sign-in page ----------
+   A full-viewport page: header with a centred wordmark, a rotated marquee title down the
+   left, the demo accounts in the middle column and the form on the right. */
+.signin-page { width: 100%; height: 100svh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 1.4rem 3.5vw 1.6rem; color: #0F1F1A; background: #fff; }
+.signin-page :focus-visible { outline: 2px solid #0A6B55; outline-offset: 5px; }
+.signin-page__header { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; font-size: .82rem; font-weight: 500; }
+.signin-page__header > :first-child { justify-self: start; }
+.signin-page__header > :last-child { justify-self: end; }
+.signin-page__brand { display: inline-flex; width: 2.25rem; height: 2.25rem; align-items: center; justify-content: center; border-radius: .5rem; color: #fff; background: #0A6B55; }
+.signin-page__link { position: relative; width: max-content; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-decoration: none; }
+.signin-page__link::after { content: ''; position: absolute; left: 0; right: 0; bottom: -.35rem; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: right; transition: transform .35s ease; }
+.signin-page__link:hover::after, .signin-page__link:focus-visible::after { transform: scaleX(1); transform-origin: left; }
+.signin-page__wordmark { justify-self: center; font-size: clamp(1.25rem, 1.75vw, 2rem); font-weight: 600; letter-spacing: .16em; }
+.signin-page__layout { position: relative; flex: 1; min-height: 0; width: min(100%, 1780px); margin: 0 auto; display: grid; grid-template-columns: 38% 28% 34%; align-items: center; }
+.signin-page__vertical-title { position: absolute; top: -5rem; left: 23%; z-index: 0; width: calc(100svh + 10rem); height: clamp(10rem, 30vh, 22rem); overflow: hidden; transform: rotate(90deg); transform-origin: top left; color: #0A6B55; font-size: clamp(9.5rem, 24vh, 19rem); font-weight: 700; letter-spacing: -.075em; line-height: 1.08; white-space: nowrap; pointer-events: none; }
+/* The marquee keeps scrolling upward while the whole word pops out from the right edge of
+   its wall. The title is rotate(90deg), so local -y is screen-right; `translate` composes
+   with the scroll's `transform` instead of replacing it. */
+.signin-page__marquee { display: flex; width: max-content; height: 100%; align-items: center; margin-left: 6.5rem; animation: signin-marquee-up 18s linear infinite, signin-marquee-in 1.15s cubic-bezier(.16, 1, .3, 1) .85s both; will-change: transform; }
+.signin-page__marquee span { flex: 0 0 auto; padding-right: clamp(4rem, 5vw, 6rem); }
+.signin-page__details { position: relative; z-index: 1; grid-column: 2; align-self: center; padding: 2rem 1.2rem 0 0; transform: translateY(9rem); }
+.signin-page__details h1 { margin: 0 0 2rem; font-size: 1.55rem; font-weight: 600; letter-spacing: -.035em; }
+.signin-page__channels { display: grid; gap: .75rem; }
+/* Demo accounts: clickable cards that fill the form */
+.signin-page__account { display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'role role' 'name user'; align-items: baseline; column-gap: .75rem; width: 100%; padding: .85rem 1rem; border: 1px solid #D3DAD6; border-radius: .5rem; color: #0F1F1A; background: #fff; font: inherit; text-align: left; cursor: pointer; transition: border-color .2s ease, background-color .2s ease, transform .2s ease, box-shadow .2s ease; }
+.signin-page__account:hover, .signin-page__account:focus-visible { border-color: #0A6B55; background: #E3F0EB; transform: translateY(-2px); box-shadow: 0 12px 24px -18px rgba(10, 107, 85, .55); }
+.signin-page__account:active { transform: translateY(0); box-shadow: none; }
+.signin-page__account-role { grid-area: role; margin-bottom: .25rem; color: #5C6B65; font-size: .66rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.signin-page__account-name { grid-area: name; font-size: .95rem; font-weight: 600; transition: color .2s ease; }
+.signin-page__account:hover .signin-page__account-name, .signin-page__account:focus-visible .signin-page__account-name { color: #0A6B55; }
+.signin-page__account-user { grid-area: user; color: #5C6B65; font-size: .78rem; }
+.signin-page__form { position: relative; z-index: 1; grid-column: 3; align-self: center; display: flex; flex-direction: column; gap: clamp(.35rem, .8vh, .65rem); width: 100%; max-width: 570px; max-height: 100%; margin-left: auto; padding: .8rem 0; color: #0F1F1A; }
+.signin-page__form-heading { margin-bottom: .3rem; padding: 0 0 .75rem; border-bottom: 1px solid #D3DAD6; font-size: .83rem; font-weight: 600; text-align: center; }
+.signin-page__error { margin: .2rem 0 0; color: #C8322B; font-size: .78rem; font-weight: 600; }
+.signin-page__field { position: relative; display: flex; min-width: 0; height: clamp(2.4rem, 5.1vh, 3rem); flex-direction: column; justify-content: flex-end; border-bottom: 1px solid #D3DAD6; color: #5C6B65; font-size: .75rem; font-weight: 600; }
+.signin-page__field input { width: 100%; min-height: 1.2rem; padding: .25rem 0 .45rem; border: 0; border-radius: 0; outline: 0; color: #0F1F1A; background: transparent; font: inherit; font-size: .82rem; }
+.signin-page__field input:focus { outline: 0; }
+.signin-page__field:focus-within { border-color: #0A6B55; }
+.signin-page__submit { align-self: flex-start; min-width: 5.2rem; margin-top: .6rem; padding: .8rem 1.25rem; border: 1px solid #0A6B55; border-radius: .5rem; color: #fff; background: #0A6B55; font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer; transition: color .2s ease, background .2s ease; }
+.signin-page__submit:hover { color: #0A6B55; background: #fff; }
+.signin-page__submit:disabled { cursor: wait; opacity: .6; }
+
+/* Sign-in content arrives once the page has risen into place. */
+.signin-page__header > *, .signin-page__details h1, .signin-page__channels > *,
+.signin-page__form > * { animation: signin-line-in 1.05s cubic-bezier(.16, 1, .3, 1) both; animation-delay: .85s; }
+.signin-page__details h1 { animation-delay: 1s; }
+.signin-page__channels > :nth-child(1) { animation-delay: 1.08s; }
+.signin-page__channels > :nth-child(2) { animation-delay: 1.16s; }
+.signin-page__channels > :nth-child(3) { animation-delay: 1.24s; }
+.signin-page__form > :nth-child(n+2) { animation-delay: calc(.95s + var(--signin-row, 0) * .06s); }
+.signin-page__form > :nth-child(2) { --signin-row: 1; } .signin-page__form > :nth-child(3) { --signin-row: 2; }
+.signin-page__form > :nth-child(4) { --signin-row: 3; } .signin-page__form > :nth-child(5) { --signin-row: 4; }
+@keyframes signin-line-in { from { opacity: 0; transform: translateY(1.6rem); } to { opacity: 1; transform: translateY(0); } }
+@keyframes signin-marquee-in { from { translate: 0 -105%; } to { translate: 0 0; } }
+@keyframes signin-marquee-up { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+@media (max-height: 760px) and (min-width: 761px) {
+  .signin-page { padding-top: .8rem; padding-bottom: .8rem; }
+  .signin-page__header { font-size: .72rem; }
+  .signin-page__wordmark { font-size: 1.2rem; }
+  .signin-page__details { padding-top: 0; transform: translateY(5rem); }
+  .signin-page__details h1 { margin-bottom: 1.25rem; }
+  .signin-page__channels { gap: .5rem; }
+  .signin-page__account { padding: .6rem .85rem; }
+  .signin-page__form { gap: .25rem; padding: .25rem 0; }
+  .signin-page__form-heading { margin-bottom: 0; padding-bottom: .45rem; }
+  .signin-page__field { height: 2.4rem; }
+  .signin-page__submit { padding: .55rem 1rem; }
+}
+
+@media (max-width: 760px) {
+  .signin-page { height: auto; min-height: 100svh; overflow: visible; padding: 1.3rem 1.25rem 2.5rem; }
+  .signin-page__header { grid-template-columns: 1fr auto 1fr; font-size: .72rem; }
+  .signin-page__wordmark { font-size: .95rem; letter-spacing: .1em; }
+  .signin-page__layout { flex: initial; min-height: auto; display: flex; flex-direction: column; align-items: stretch; padding-top: 5rem; }
+  .signin-page__vertical-title { display: none; }
+  .signin-page__details { align-self: stretch; padding: 0; transform: none; }
+  .signin-page__details h1 { margin-bottom: 1.5rem; font-size: 1.4rem; }
+  .signin-page__channels { grid-template-columns: 1fr; gap: .6rem; }
+  .signin-page__form { gap: .75rem; max-width: none; max-height: none; margin: 3rem 0 0; padding: 0; }
+  .signin-page__field { height: 2.8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise-in,
+  .board-row,
+  .is-visible .board-row,
+  .hero__mask > span,
+  .hero__actions,
+  .hero__bottom {
+    animation: none;
+  }
+
+  .board-row { opacity: 1; }
+  .hero__mask > span { transform: none; }
+
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .signin-page__marquee { animation: none; }
+  .signin-page__header > *, .signin-page__details h1, .signin-page__channels > *, .signin-page__form > * { animation: none; }
+  .signin-page__account { transition: none; }
+}
