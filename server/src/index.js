@@ -3,7 +3,7 @@ import http from 'http';
 import cors from 'cors';
 import { PORT, CLIENT_ORIGIN } from './config.js';
 import { initDatabase, backupDatabase } from './db.js';
-import { runSeed } from './seed.js'; // Correctly import runSeed
+import { runSeed } from './seed.js';
 import { initSocket } from './socket.js';
 import { authRouter } from './routes/auth.js';
 import { patientsRouter } from './routes/patients.js';
@@ -61,7 +61,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Initialize database schema and automatically seed demo accounts if empty
+// Initialize database schema and automatically seed demo accounts
 initDatabase();
 try {
   runSeed();
