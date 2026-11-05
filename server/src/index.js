@@ -3,7 +3,7 @@ import http from 'http';
 import cors from 'cors';
 import { PORT, CLIENT_ORIGIN } from './config.js';
 import { initDatabase, backupDatabase } from './db.js';
-import { seedDatabase } from './seed.js'; // Import your seeder
+import { runSeed } from './seed.js'; // Correctly import runSeed
 import { initSocket } from './socket.js';
 import { authRouter } from './routes/auth.js';
 import { patientsRouter } from './routes/patients.js';
@@ -61,13 +61,11 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Initialize database schema and automatically seed demo accounts
+// Initialize database schema and automatically seed demo accounts if empty
 initDatabase();
 try {
-  if (typeof seedDatabase === 'function') {
-    seedDatabase();
-    console.log('[Database] Auto-seed check completed.');
-  }
+  runSeed();
+  console.log('[Database] Auto-seed completed successfully.');
 } catch (seedErr) {
   console.error('[Auto-Seed Warning]', seedErr);
 }
