@@ -3,6 +3,7 @@ import http from 'http';
 import cors from 'cors';
 import { PORT, CLIENT_ORIGIN } from './config.js';
 import { initDatabase, backupDatabase } from './db.js';
+import { seedDatabase } from './seed.js'; // Import your seeder
 import { initSocket } from './socket.js';
 import { authRouter } from './routes/auth.js';
 import { patientsRouter } from './routes/patients.js';
@@ -17,14 +18,13 @@ initSocket(server);
 // Middleware
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, postman) or matching origin / local network
     if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || origin.startsWith('http://192.168.') || origin.startsWith('http://10.')) {
       return callback(null, true);
     }
     if (origin === CLIENT_ORIGIN) {
       return callback(null, true);
     }
-    return callback(null, true); // Permissive for local network clinic access
+    return callback(null, true);
   },
   credentials: true,
 }));
@@ -61,8 +61,16 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Initialize database schema
+// Initialize database schema and automatically seed demo accounts
 initDatabase();
+try {
+  if (typeof seedDatabase === 'function') {
+    seedDatabase();
+    console.log('[Database] Auto-seed check completed.');
+  }
+} catch (seedErr) {
+  console.error('[Auto-Seed Warning]', seedErr);
+}
 
 // Run immediate startup backup and schedule recurring 24-hour backup
 backupDatabase().catch(err => console.error('[Initial Backup Warning]', err));
@@ -70,7 +78,7 @@ setInterval(() => {
   backupDatabase().catch(err => console.error('[Daily Backup Warning]', err));
 }, 24 * 60 * 60 * 1000);
 
-// Listen on all network interfaces (0.0.0.0) so clinic tablets / phones can connect!
+// Listen on all network interfaces (0.0.0.0)
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`====================================================`);
   console.log(`🏥 Clinic Patient-Flow Server running on port ${PORT}`);
