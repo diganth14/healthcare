@@ -21,8 +21,12 @@ import {
   FileText,
   User,
   ShieldCheck,
-  BellRing
+  BellRing,
+  ChevronUp,
+  ChevronDown,
+  X
 } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../api';
 import { CardTilt } from './CardTilt';
 import { PrintPrescriptionModal } from './PrintPrescriptionModal';
@@ -76,6 +80,10 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
   // Action states
   const [isCallingNext, setIsCallingNext] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Waiting queue controls: which card is mid-request, and which is asking to confirm removal
+  const [busyVisitId, setBusyVisitId] = useState<number | null>(null);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<number | null>(null);
 
   // Sync draft inputs when active patient changes
   useEffect(() => {
@@ -193,6 +201,162 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
   const waitingList = queueData.waitingQueue || [];
   const nextInLine = waitingList.length > 0 ? waitingList[0] : null;
 
+  // Move a waiting patient one place up or down the queue
+  const handleMoveVisit = async (visitId: number, direction: 'up' | 'down') => {
+    setActionError(null);
+    setBusyVisitId(visitId);
+    try {
+      await api.moveVisit(visitId, direction);
+      onRefreshQueue();
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to move patient.');
+    } finally {
+      setBusyVisitId(null);
+    }
+  };
+
+  // Remove a waiting patient from the queue (the visit is marked cancelled)
+  const handleRemoveVisit = async (visitId: number) => {
+    setActionError(null);
+    setBusyVisitId(visitId);
+    try {
+      await api.cancelVisit(visitId);
+      setConfirmRemoveId(null);
+      onRefreshQueue();
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to remove patient.');
+    } finally {
+      setBusyVisitId(null);
+    }
+  };
+
+  // The waiting queue with the doctor's move and remove controls, shown beside the room in both states
+  const waitingQueuePanel = (
+            <div className="glass-card rounded-3xl p-5 border border-white/90">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                  Waiting Queue ({waitingList.length})
+                </h4>
+                <span className="text-[10px] text-slate-400 font-mono">Live Sync</span>
+              </div>
+
+              {waitingList.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-400 font-semibold">
+                  Queue is clear. No patients waiting.
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
+                  {/* Cards slide to their new place when the order changes, and collapse away when removed */}
+                  <AnimatePresence initial={false}>
+                  {waitingList.map((wVisit, idx) => (
+                    <motion.div
+                      key={wVisit.id}
+                      layout
+                      initial={false}
+                      exit={{ opacity: 0, scale: 0.96, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }}
+                      transition={{
+                        layout: { type: 'spring', stiffness: 420, damping: 38 },
+                        opacity: { duration: 0.2 },
+                        height: { duration: 0.28 },
+                      }}
+                      className={`p-3 rounded-2xl border text-xs space-y-1 overflow-hidden transition-colors ${
+                        idx === 0
+                          ? 'bg-sky-50/70 border-sky-300'
+                          : wVisit.emergency_level === 'emergency'
+                          ? 'bg-coral/5 border-coral/30'
+                          : wVisit.emergency_level === 'urgent'
+                          ? 'bg-amber/5 border-amber/30'
+                          : 'bg-white/70 border-slate-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-black text-[11px] text-slate-800">
+                          #{wVisit.token_number}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                          wVisit.emergency_level === 'emergency'
+                            ? 'bg-coral text-white'
+                            : wVisit.emergency_level === 'urgent'
+                            ? 'bg-amber text-slate-900'
+                            : 'bg-mint text-white'
+                        }`}>
+                          {wVisit.emergency_level}
+                        </span>
+                      </div>
+                      <div className="font-bold text-slate-900">
+                        {wVisit.patient_name} ({wVisit.patient_age}y)
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate">
+                        {wVisit.complaint}
+                      </p>
+
+                      {/* Queue controls: move up or down, or remove from the queue */}
+                      <div className="flex items-center justify-between pt-1.5">
+                        {confirmRemoveId === wVisit.id ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[11px] font-bold text-coral">Remove from queue?</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveVisit(wVisit.id)}
+                              disabled={busyVisitId === wVisit.id}
+                              className="px-2 py-1 rounded-lg text-[11px] font-black text-white bg-coral hover:bg-coral-dark disabled:opacity-60 transition-colors"
+                            >
+                              {busyVisitId === wVisit.id ? 'Removing…' : 'Yes, remove'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmRemoveId(null)}
+                              className="px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 border border-slate-200 hover:bg-slate-100 transition-colors"
+                            >
+                              Keep
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleMoveVisit(wVisit.id, 'up')}
+                                disabled={idx === 0 || busyVisitId !== null}
+                                aria-label={`Move ${wVisit.patient_name} up the queue`}
+                                title="Move up"
+                                className="h-7 w-7 flex items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 hover:border-sky-300 hover:text-sky-700 disabled:opacity-35 disabled:hover:border-slate-200 disabled:hover:text-slate-600 transition-colors"
+                              >
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveVisit(wVisit.id, 'down')}
+                                disabled={idx === waitingList.length - 1 || busyVisitId !== null}
+                                aria-label={`Move ${wVisit.patient_name} down the queue`}
+                                title="Move down"
+                                className="h-7 w-7 flex items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-slate-600 hover:border-sky-300 hover:text-sky-700 disabled:opacity-35 disabled:hover:border-slate-200 disabled:hover:text-slate-600 transition-colors"
+                              >
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmRemoveId(wVisit.id)}
+                              disabled={busyVisitId !== null}
+                              aria-label={`Remove ${wVisit.patient_name} from the queue`}
+                              title="Remove from queue"
+                              className="h-7 px-2 flex items-center gap-1 rounded-lg border border-slate-200 bg-white/80 text-[11px] font-bold text-slate-600 hover:border-coral/40 hover:text-coral disabled:opacity-35 transition-colors"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              Remove
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
+  );
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-24">
       {/* Floating Non-Intrusive Emergency Toast Alert */}
@@ -269,7 +433,9 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
 
       {/* ===================== CONSULTING ROOM STATE ===================== */}
       {!currentVisit ? (
-        /* ROOM IS FREE: Show Call Next Patient Hero Card */
+        /* ROOM IS FREE: Call Next Patient card, with the waiting queue beside it */
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
         <CardTilt className="p-8 sm:p-12 rounded-4xl glass-card border-2 border-dashed border-sky-200 text-center space-y-6">
           <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-sky-500 to-mint flex items-center justify-center text-white shadow-xl shadow-sky-500/20">
             <UserCheck className="w-10 h-10" />
@@ -333,6 +499,9 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
             </button>
           </div>
         </CardTilt>
+        </div>
+        <div className="space-y-4">{waitingQueuePanel}</div>
+        </div>
       ) : (
         /* ROOM IS OCCUPIED: Comprehensive Active Patient Details + Diagnosis Form */
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -597,60 +766,9 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
             </CardTilt>
           </div>
 
-          {/* Right Column: Read-Only Waiting Queue for Doctor */}
+          {/* Right Column: Waiting Queue with the doctor's move and remove controls */}
           <div className="space-y-4">
-            <div className="glass-card rounded-3xl p-5 border border-white/90">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
-                  Waiting Queue ({waitingList.length})
-                </h4>
-                <span className="text-[10px] text-slate-400 font-mono">Live Sync</span>
-              </div>
-
-              {waitingList.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-400 font-semibold">
-                  Queue is clear. No patients waiting.
-                </div>
-              ) : (
-                <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
-                  {waitingList.map((wVisit, idx) => (
-                    <div
-                      key={wVisit.id}
-                      className={`p-3 rounded-2xl border text-xs space-y-1 transition-all ${
-                        idx === 0
-                          ? 'bg-sky-50/70 border-sky-300'
-                          : wVisit.emergency_level === 'emergency'
-                          ? 'bg-coral/5 border-coral/30'
-                          : wVisit.emergency_level === 'urgent'
-                          ? 'bg-amber/5 border-amber/30'
-                          : 'bg-white/70 border-slate-200'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono font-black text-[11px] text-slate-800">
-                          #{wVisit.token_number}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                          wVisit.emergency_level === 'emergency'
-                            ? 'bg-coral text-white'
-                            : wVisit.emergency_level === 'urgent'
-                            ? 'bg-amber text-slate-900'
-                            : 'bg-mint text-white'
-                        }`}>
-                          {wVisit.emergency_level}
-                        </span>
-                      </div>
-                      <div className="font-bold text-slate-900">
-                        {wVisit.patient_name} ({wVisit.patient_age}y)
-                      </div>
-                      <p className="text-[11px] text-slate-500 truncate">
-                        {wVisit.complaint}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            {waitingQueuePanel}
           </div>
         </div>
       )}

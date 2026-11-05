@@ -16,6 +16,18 @@ import {
 export const visitsRouter = express.Router();
 
 /**
+ * Effective queue position of a waiting visit (alias `v`).
+ * A doctor's manual placement (queue_key) wins; otherwise triage level, then arrival time.
+ * Keys are milliseconds since the epoch offset by 1e13 per level, so they compare as numbers
+ * and a manual key can be placed between any two neighbours.
+ */
+const QUEUE_KEY_SQL = `COALESCE(
+  v.queue_key,
+  (CASE v.emergency_level WHEN 'emergency' THEN 1 WHEN 'urgent' THEN 2 ELSE 3 END) * 1e13
+    + (julianday(v.arrival_time) - 2440587.5) * 86400000.0
+)`;
+
+/**
  * Helper to fetch a full visit object with patient and user info
  */
 function getFullVisit(visitId) {
@@ -77,9 +89,9 @@ visitsRouter.get('/queue', authenticateToken, (req, res) => {
       patient_conditions: inConsultationRow.patient_conditions ? JSON.parse(inConsultationRow.patient_conditions) : [],
     } : null;
 
-    // 2. Waiting queue sorted by emergency level (emergency -> urgent -> normal) then arrival time
+    // 2. Waiting queue: doctor's manual placement first, otherwise emergency level then arrival time
     const waitingRows = db.prepare(`
-      SELECT 
+      SELECT
         v.*,
         p.name AS patient_name,
         p.age AS patient_age,
@@ -91,14 +103,7 @@ visitsRouter.get('/queue', authenticateToken, (req, res) => {
       JOIN patients p ON p.id = v.patient_id
       LEFT JOIN users u_nurse ON u_nurse.id = v.created_by
       WHERE v.status = 'waiting'
-      ORDER BY 
-        CASE v.emergency_level 
-          WHEN 'emergency' THEN 1 
-          WHEN 'urgent' THEN 2 
-          WHEN 'normal' THEN 3 
-          ELSE 4 
-        END ASC,
-        v.arrival_time ASC
+      ORDER BY ${QUEUE_KEY_SQL} ASC
     `).all();
 
     const waitingQueue = waitingRows.map(row => ({
@@ -353,6 +358,11 @@ visitsRouter.put('/:id', authenticateToken, requireRole('nurse'), validateVisitU
         visitId
       );
 
+      // A new triage level resets any manual placement the doctor made
+      if (emergency_level && emergency_level !== current.emergency_level) {
+        db.prepare('UPDATE visits SET queue_key = NULL WHERE id = ?').run(visitId);
+      }
+
       return getFullVisit(visitId);
     });
 
@@ -374,9 +384,9 @@ visitsRouter.put('/:id', authenticateToken, requireRole('nurse'), validateVisitU
 
 /**
  * POST /api/visits/:id/cancel
- * Cancel a no-show visit (Nurse only)
+ * Cancel a visit: a no-show at the desk, or a patient the doctor removes from the queue
  */
-visitsRouter.post('/:id/cancel', authenticateToken, requireRole('nurse'), (req, res) => {
+visitsRouter.post('/:id/cancel', authenticateToken, requireRole('nurse', 'doctor'), (req, res) => {
   const visitId = parseInt(req.params.id, 10);
   if (isNaN(visitId)) {
     return res.status(400).json({ error: 'Invalid visit ID.' });
@@ -408,6 +418,79 @@ visitsRouter.post('/:id/cancel', authenticateToken, requireRole('nurse'), (req, 
 });
 
 /**
+ * POST /api/visits/:id/move  { direction: 'up' | 'down' }
+ * Doctor moves a waiting patient one place up or down the queue.
+ * The patient's key is set between the neighbour's and the one beyond it, so the move is
+ * exactly one place and later arrivals still sort by triage level around it.
+ */
+visitsRouter.post('/:id/move', authenticateToken, requireRole('doctor'), (req, res) => {
+  const visitId = parseInt(req.params.id, 10);
+  const direction = req.body?.direction;
+  if (isNaN(visitId)) {
+    return res.status(400).json({ error: 'Invalid visit ID.' });
+  }
+  if (direction !== 'up' && direction !== 'down') {
+    return res.status(400).json({ error: "Direction must be 'up' or 'down'." });
+  }
+
+  try {
+    const moveTransaction = db.transaction(() => {
+      const rows = db.prepare(`
+        SELECT v.id, ${QUEUE_KEY_SQL} AS queue_key
+        FROM visits v
+        WHERE v.status = 'waiting'
+        ORDER BY queue_key ASC
+      `).all();
+
+      const index = rows.findIndex(row => row.id === visitId);
+      if (index === -1) {
+        throw new Error('NOT_WAITING');
+      }
+
+      const target = direction === 'up' ? index - 1 : index + 1;
+      if (target < 0 || target >= rows.length) {
+        throw new Error('AT_EDGE');
+      }
+
+      const neighbourKey = rows[target].queue_key;
+      const beyond = rows[direction === 'up' ? target - 1 : target + 1];
+      const newKey = beyond
+        ? (neighbourKey + beyond.queue_key) / 2
+        : direction === 'up'
+          ? neighbourKey - 60000
+          : neighbourKey + 60000;
+
+      db.prepare(`
+        UPDATE visits
+        SET queue_key = ?, updated_at = datetime('now', 'localtime')
+        WHERE id = ?
+      `).run(newKey, visitId);
+
+      return getFullVisit(visitId);
+    });
+
+    const moved = moveTransaction();
+    emitQueueUpdated({ type: 'VISIT_MOVED', visitId, direction });
+
+    res.json({
+      message: `Patient moved ${direction} the queue.`,
+      visit: moved,
+    });
+  } catch (err) {
+    if (err.message === 'NOT_WAITING') {
+      return res.status(404).json({ error: 'Visit is not in the waiting queue.' });
+    }
+    if (err.message === 'AT_EDGE') {
+      return res.status(400).json({
+        error: direction === 'up' ? 'Patient is already first in the queue.' : 'Patient is already last in the queue.',
+      });
+    }
+    console.error('[Move Visit Error]', err);
+    res.status(500).json({ error: 'Failed to move patient.' });
+  }
+});
+
+/**
  * POST /api/visits/call-next
  * Doctor calls the next waiting patient
  * MUST EXECUTE IN A TRANSACTION!
@@ -425,18 +508,11 @@ visitsRouter.post('/call-next', authenticateToken, requireRole('doctor'), (req, 
         throw new Error('ROOM_OCCUPIED');
       }
 
-      // 2. Select top waiting patient ordered by emergency_level, then arrival_time
+      // 2. Select the first waiting patient in queue order (manual placement, else level then arrival)
       const nextVisit = db.prepare(`
-        SELECT id FROM visits 
-        WHERE status = 'waiting'
-        ORDER BY 
-          CASE emergency_level 
-            WHEN 'emergency' THEN 1 
-            WHEN 'urgent' THEN 2 
-            WHEN 'normal' THEN 3 
-            ELSE 4 
-          END ASC,
-          arrival_time ASC
+        SELECT v.id FROM visits v
+        WHERE v.status = 'waiting'
+        ORDER BY ${QUEUE_KEY_SQL} ASC
         LIMIT 1
       `).get();
 

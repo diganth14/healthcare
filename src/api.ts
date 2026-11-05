@@ -115,6 +115,13 @@ export const api = {
     });
   },
 
+  async moveVisit(visitId: number, direction: 'up' | 'down'): Promise<{ message: string; visit: Visit }> {
+    return apiFetch<{ message: string; visit: Visit }>(`/api/visits/${visitId}/move`, {
+      method: 'POST',
+      body: JSON.stringify({ direction }),
+    });
+  },
+
   async callNextPatient(): Promise<{ message: string; visit: Visit }> {
     return apiFetch<{ message: string; visit: Visit }>('/api/visits/call-next', {
       method: 'POST',
