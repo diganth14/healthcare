@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #F8FAFC;
+    color: #1E293B;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+/* Glassmorphism VisionOS style */
+.glass-card {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.05), 0 0 1px 1px rgba(255, 255, 255, 0.9) inset;
+}
+
+.glass-card-interactive {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 20px 45px -12px rgba(14, 165, 233, 0.07), 0 0 1px 1px rgba(255, 255, 255, 0.95) inset;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-interactive:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 30px 60px -12px rgba(14, 165, 233, 0.12), 0 0 1px 1px rgba(255, 255, 255, 1) inset;
+}
+
+.glass-pill {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+/* Heartbeat pulse animation */
+@keyframes heartPulse {
+  0% { transform: scale(1); opacity: 0.9; }
+  15% { transform: scale(1.18); opacity: 1; }
+  30% { transform: scale(1); opacity: 0.9; }
+  45% { transform: scale(1.12); opacity: 1; }
+  60% { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 0.9; }
+}
+
+.animate-heart-pulse {
+  animation: heartPulse 1.4s ease-in-out infinite;
+}
