@@ -92,13 +92,6 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_visits_date ON visits(created_at);
     CREATE INDEX IF NOT EXISTS idx_patients_search ON patients(name, phone);
   `);
-
-  // A doctor's manual queue placement (see the move endpoint in routes/visits.js).
-  // Databases created before this column existed get it added here.
-  const visitColumns = db.prepare('PRAGMA table_info(visits)').all().map(column => column.name);
-  if (!visitColumns.includes('queue_key')) {
-    db.exec('ALTER TABLE visits ADD COLUMN queue_key REAL');
-  }
 }
 
 /**

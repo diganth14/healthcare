@@ -57,7 +57,7 @@ export const PrintPrescriptionModal: React.FC<PrintPrescriptionModalProps> = ({ 
               </div>
               <div>
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                  COMMUNITY HEALTH CLINIC
+                  AURAHEALTH COMMUNITY CLINIC
                 </h1>
                 <p className="text-xs text-slate-500 font-medium">
                   Primary Healthcare, Family Practice & Acute Triage Center
@@ -173,7 +173,7 @@ export const PrintPrescriptionModal: React.FC<PrintPrescriptionModalProps> = ({ 
             <div className="text-[11px] text-slate-400 font-medium">
               Consultation completed at {visit.consultation_end_time ? new Date(visit.consultation_end_time).toLocaleTimeString() : new Date().toLocaleTimeString()}
               <br />
-              Electronic record verified • MediTrack
+              Electronic Record Verified • AuraHealth Smart Clinic
             </div>
             <div className="text-center">
               <div className="w-40 border-b border-slate-800 mb-1" />
